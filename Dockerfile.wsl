@@ -1,0 +1,19 @@
+# Official linux/amd64 Ollama 0.35.1 image, matching the installed Windows version.
+FROM ollama/ollama@sha256:17e945f1aa6e505707eeb621e3f36847d0a4a063d4778f7007645acccfb8bd4f
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/python \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    LANGSMITH_TRACING=false \
+    LANGCHAIN_TRACING_V2=false
+RUN uv python install 3.12 --no-bin \
+    && uv venv --python 3.12 --seed /opt/venv
+COPY requirements-lock.txt /tmp/requirements-lock.txt
+RUN uv pip install --python /opt/venv/bin/python -r /tmp/requirements-lock.txt \
+    && python -m pip check
+WORKDIR /workspace
+COPY scripts/ollama-entrypoint.sh /usr/local/bin/start-lab
+COPY scripts/import_model_cache.py /usr/local/bin/import-model-cache.py
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/start-lab"]

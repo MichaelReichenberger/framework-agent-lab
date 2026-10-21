@@ -1,0 +1,7 @@
+**
+!Dockerfile.wsl
+!requirements-lock.txt
+!scripts/
+scripts/*
+!scripts/ollama-entrypoint.sh
+!scripts/import_model_cache.py
