@@ -7,10 +7,13 @@ eine finale Modellantwort durch `verify` zu `END`. Verifizierter Erfolg benötig
 aktuelle bestandene Tests; eine Modellbehauptung genügt nicht. Die vollständige
 Aufgabenstellung steht in [HANDOUT.md](HANDOUT.md).
 
-**`target-service` enthält bereits die reparierte Version.** Die Anleitung zeigt
-deren Prüfung und anschließend eine neue Live-Reparatur auf einer separaten
-fehlerhaften Kopie. Sie funktioniert aus einem frischen Klon ohne persönliche
-`.env.wsl`, lokale Demo-Skripte oder zusätzliche Git-Tags.
+**`target-service` enthält bereits die reparierte Version.** Die Schritte 1–4
+richten das Projekt ein und prüfen den mitgelieferten Stand. Danach wird in
+Schritt 5 eine separate fehlerhafte Kopie vorbereitet, bevor in Schritt 7 der
+Agent für die Live-Reparatur startet. Schritt 8 prüft das Ergebnis unabhängig.
+Die Anleitung benötigt
+keine persönliche `.env.wsl`, nicht eingecheckte Hilfsdateien oder zusätzlichen
+Git-Tags.
 
 ## 1. Voraussetzungen
 
@@ -23,6 +26,8 @@ fehlerhaften Kopie. Sie funktioniert aus einem frischen Klon ohne persönliche
   große Modell; Internetzugang für den ersten Build und Modelldownload.
 
 Docker Desktop starten. **Alle folgenden Befehle im Ubuntu-Terminal ausführen.**
+Dabei immer im Hauptordner desselben Klons bleiben, nicht in `scripts`,
+`starter` oder `target-service` wechseln.
 Python 3.12, die Pakete aus `requirements-lock.txt` und Ollama werden gemeinsam
 im Linux-Container bereitgestellt. Dafür ist keine zusätzliche Python- oder
 Ollama-Installation auf dem Host erforderlich.
@@ -38,16 +43,28 @@ gefunden, zuerst die WSL-Integration in Docker Desktop aktivieren.
 
 ## 2. Klonen und Container starten
 
+Einmalig klonen:
+
 ```bash
 mkdir -p ~/projects
 cd ~/projects
 git clone https://github.com/MichaelReichenberger/framework-agent-lab.git
 cd framework-agent-lab
+```
 
+Bei einem bereits vorhandenen Klon stattdessen aktualisieren:
+
+```bash
+cd ~/projects/framework-agent-lab
+git pull --ff-only
+```
+
+Danach im Repository-Hauptordner den Container starten:
+
+```bash
 mkdir -p .wsl-models
 bash scripts/wsl.sh up -d --build --wait --wait-timeout 300
 bash scripts/wsl.sh exec lab python --version
-```
 bash scripts/wsl.sh exec lab python -m pip check
 ```
 
@@ -94,7 +111,7 @@ bash scripts/wsl.sh exec -w /workspace/target-service lab python -m unittest dis
 
 Smoke und Workflow verwenden geskriptete Modelle. Automatische Freigaben im
 Workflow gelten nur für dessen harmlose temporäre Testdateien. Diese Diagnosen
-ersetzen den echten Modelllauf aus Schritt 7 nicht.
+ersetzen den echten Reparaturlauf aus Schritt 7 nicht.
 
 ## 5. Frische Baseline für die Live-Reparatur vorbereiten
 
@@ -103,13 +120,8 @@ wird ein neuer Ordner erstellt. Der Export enthält die eingecheckten
 Service-Dateien, zunächst ohne Studententest:
 
 ```bash
-mkdir -p .wsl-runs
-demo_run=$(mktemp -d .wsl-runs/live-XXXXXX)
-demo_root="$demo_run/service"
-mkdir "$demo_root"
-git archive HEAD target-service | tar -x --strip-components=1 \
-  --exclude='target-service/tests/test_student.py' -C "$demo_root"
-printf '%s\n' "$demo_root" > .wsl-runs/current-demo.txt
+bash scripts/prepare_demo.sh
+demo_root=$(cat .wsl-runs/current-demo.txt)
 ```
 
 Nur in dieser Kopie wird jetzt die originale fehlerhafte Pricing-Version
@@ -117,25 +129,6 @@ wiederhergestellt. Das bereitet den Ausgangszustand vor; die spätere Reparatur
 muss das Modell selbst über `edit_pricing` auswählen und ausführen.
 
 ```bash
-cat > "$demo_root/orders/pricing.py" <<'PY'
-"""Pricing calculation. Support has reported incorrect customer totals."""
-from decimal import Decimal
-from .validation import validate_order
-
-
-def quote(lines, discount=Decimal("0")):
-    validate_order(lines, discount)
-    subtotal = sum((line["unit_price"] * line["quantity"] for line in lines), Decimal("0"))
-    shipping = Decimal("0") if subtotal >= Decimal("100") else Decimal("5")
-    total = ((subtotal + shipping) * (1 - discount)).quantize(Decimal("0.01"))
-    return {"subtotal": subtotal, "shipping": shipping, "total": total}
-PY
-
-git -C "$demo_root" init --initial-branch=main
-git -C "$demo_root" add .
-git -C "$demo_root" -c user.name="Lab Student" -c user.email="student@example.invalid" \
-  commit -m "Record original pricing baseline"
-
 bash scripts/wsl.sh exec -w "/workspace/$demo_root" lab \
   python -m unittest discover -s tests -p test_acceptance.py -v
 ```
@@ -163,25 +156,13 @@ Dieser Check verwendet den bereits reparierten Service und bestätigt per
 Hashvergleich, dass beide verweigerten Anfragen Pricing unverändert lassen:
 
 ```bash
-bash scripts/wsl.sh exec -T lab python - <<'PY'
-from hashlib import sha256
-from pathlib import Path
-from starter.agent import build_tools
-
-pricing = Path("target-service/orders/pricing.py")
-before = sha256(pricing.read_bytes()).hexdigest()
-tools = {tool.name: tool for tool in build_tools(Path("target-service"))}
-print(tools["read_file"].invoke({"path": "../HANDOUT.md"}))
-print(tools["edit_pricing"].invoke({"old": "Decimal", "new": "float"}))
-assert sha256(pricing.read_bytes()).hexdigest() == before
-print("Pricing unverändert.")
-PY
+bash scripts/wsl.sh exec lab python checks/tool_denials.py --root target-service
 ```
 
 Beide Antworten beginnen mit `ERROR`: Der erste Pfad verlässt den Arbeitsbereich;
 im zweiten Aufruf kommt der alte Text mehrfach vor und ist daher nicht eindeutig.
 
-## 7. Live-Agenten starten und Tests persönlich freigeben
+## 7. Live-Reparatur starten und Tests persönlich freigeben
 
 Im ersten Terminal im Repository-Hauptordner:
 
@@ -272,3 +253,5 @@ bash scripts/wsl.sh stop
 
 Wenn nur die Modelldateien fehlen, Schritt 3 wiederholen. Bei einem
 Containerstartfehler zuerst die Logs und die Docker-/GPU-Verfügbarkeit prüfen.
+Persönliche Dateien unter `.wsl-runs`, etwa `run_once_demo.py`, werden nicht
+mitgeklont und sind für diese Anleitung nicht erforderlich.
