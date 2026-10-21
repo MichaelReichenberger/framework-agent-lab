@@ -39,7 +39,7 @@ For WSL2 with Docker Desktop, use the project configuration described in
 [WSL.md](WSL.md). Run these commands in the Ubuntu WSL terminal:
 
 ```bash
-cd /mnt/c/Users/micha/Downloads/framework-agent-lab/framework-agent-lab
+cd path/to/repo/framework-agent-lab/framework-agent-lab
 bash scripts/wsl.sh up -d --build
 bash scripts/wsl.sh exec lab python -m pip check
 bash scripts/wsl.sh exec lab ollama list
