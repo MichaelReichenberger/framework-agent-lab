@@ -47,6 +47,7 @@ cd framework-agent-lab
 mkdir -p .wsl-models
 bash scripts/wsl.sh up -d --build --wait --wait-timeout 300
 bash scripts/wsl.sh exec lab python --version
+```
 bash scripts/wsl.sh exec lab python -m pip check
 ```
 
