@@ -224,6 +224,18 @@ der geschützte Diff und `cmp` bleiben ohne Ausgabe mit Exitcode 0. Auch der
 separate Testlauf muss **alle 10 Tests** bestehen. Keine Akzeptanztests oder
 Geschäftsregeln abschwächen, um Erfolg zu erreichen.
 
+### Ergänzender Nachweis zur Videoaufnahme
+
+Die unabhängige Prüfung wurde durchgeführt, konnte aber aus Zeitgründen im
+Vier-Minuten-Video nicht mehr gezeigt werden. Der folgende Screenshot ergänzt
+diesen Teil: Er zeigt den Pricing-Diff, nur Pricing als geändert und den
+Studententest als neue Datei sowie den separat ausgeführten Testlauf mit
+**10 bestandenen Tests (`OK`)**. Die Prüfung der geschützten Dateien und der
+Vergleich des Regressionstests mit `cmp` bleiben ohne Ausgabe; ihre Exitcodes
+sind im Screenshot nicht separat eingeblendet.
+
+![Unabhängige Prüfung: Pricing-Diff, geschützte Dateien, Regressionstest-Vergleich und zehn bestandene Tests](docs/evidence/independent-verification.png)
+
 ## Nachgewiesener WSL-Lauf und Abgabe
 
 Am 20. Oktober 2026 bestand ein vollständiger Live-Lauf unter WSL2/Docker mit
@@ -238,8 +250,7 @@ Dies dokumentiert einen beobachteten Lauf; ein neuer Modelllauf kann anders ende
 Die Implementierung und der Regressionstest entstanden mit Codex-Unterstützung.
 Finite Tests beweisen keine Korrektheit für alle Eingaben. Zur Abgabe gehören
 Quellcode, der ausgefüllte [Fragebogen](questionnaire.md) und ein persönliches
-Vier-Minuten-Video. Das Handout verlangt außerdem ein Partnerreview; Hinweise
-zur Aufnahme stehen in [video-guide.md](video-guide.md). Persönliche
+Vier-Minuten-Video. Das Handout verlangt außerdem ein Partnerreview. Persönliche
 Konfiguration, Modelle, Caches und Demo-Verzeichnisse bleiben per `.gitignore`
 außerhalb des Repositorys.
 
